@@ -6,6 +6,10 @@ import {
 } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
 
+/**
+ *
+ */
+
 @WebSocketGateway({ transports: ['websocket'] })
 export class ChessGateway {
   rooms = new Map();
@@ -80,10 +84,18 @@ export class ChessGateway {
   @SubscribeMessage('update:chess')
   handleUpdateChess(
     @MessageBody()
-    data: { roomId: string; player: string; move: Record<string, string> },
+    data: {
+      roomId: string;
+      player: string;
+      move: Record<string, string>;
+      chessState: any;
+    },
     @ConnectedSocket() client: Socket,
   ) {
-    console.log(client.rooms, data, 'update:chess');
+    // console.log(data, 'Data');
+    // console.log(client.rooms, data, 'update:chess');
+    this.rooms.get(data.roomId).chessState = data.chessState;
+
     return client.in([data.roomId]).emit('update:chess', data.move);
   }
 }
