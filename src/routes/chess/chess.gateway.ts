@@ -4,6 +4,7 @@ import {
   SubscribeMessage,
   WebSocketGateway,
 } from '@nestjs/websockets';
+import { randomUUID } from 'crypto';
 import { Socket } from 'socket.io';
 
 /**
@@ -42,7 +43,7 @@ export class ChessGateway {
         data: { roomId: unfilledRoom, ...this.rooms.get(unfilledRoom) },
       });
     } else {
-      const roomId = Math.random().toString();
+      const roomId = randomUUID();
       this.rooms.set(roomId, { player1: data.userId });
       this.unfilledRooms.push(roomId);
       await client.join(roomId);
