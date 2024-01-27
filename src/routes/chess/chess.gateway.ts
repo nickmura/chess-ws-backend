@@ -3,56 +3,43 @@ import {
   MessageBody,
   SubscribeMessage,
   WebSocketGateway,
+  WebSocketServer,
 } from '@nestjs/websockets';
-import { randomUUID } from 'crypto';
-import { Socket } from 'socket.io';
-
-/**
- *
- */
+import { Server, Socket } from 'socket.io';
+import { ChessService } from './chess.service';
+import { Move } from 'chess.js';
 
 @WebSocketGateway({ transports: ['websocket'] })
 export class ChessGateway {
-  rooms = new Map();
-  unfilledRooms: Array<string> = [];
+  constructor(private chessService: ChessService) {}
+
+  @WebSocketServer()
+  server: Server;
+
+  // rooms = new Map();
+  // unfilledRooms: Array<string> = [];
 
   handleConnection() {
     console.log('New connection');
 
-    console.log(this.rooms, this.unfilledRooms);
+    // console.log(this.rooms, this.unfilledRooms);
   }
 
   @SubscribeMessage('join:chess')
   async handleJoinChess(
-    @MessageBody() data: { userId: string | number },
+    @MessageBody() data: { userId: string },
     @ConnectedSocket() client: Socket,
   ) {
-    // console.log(data, 'client', client.id);
+    const result = this.chessService.joinAnyRoom(data);
 
-    const unfilledRoom = this.unfilledRooms.shift();
+    await client.join(result.roomId);
 
-    if (unfilledRoom) {
-      await client.join(unfilledRoom);
-      this.rooms.set(unfilledRoom, {
-        ...this.rooms.get(unfilledRoom),
-        player2: data.userId,
-      });
+    console.log(result, 'result');
 
-      return client.emit('joined:chess', {
-        message: `You joined the chess room ${unfilledRoom}`,
-        data: { roomId: unfilledRoom, ...this.rooms.get(unfilledRoom) },
-      });
-    } else {
-      const roomId = randomUUID();
-      this.rooms.set(roomId, { player1: data.userId });
-      this.unfilledRooms.push(roomId);
-      await client.join(roomId);
-
-      return client.emit('joined:chess', {
-        message: `You joined the chess room ${roomId}`,
-        data: { roomId, ...this.rooms.get(roomId) },
-      });
-    }
+    return client.emit('joined:chess', {
+      message: `You joined the chess room ${result.roomId}`,
+      data: result,
+    });
   }
 
   @SubscribeMessage('join:chess:room')
@@ -60,26 +47,19 @@ export class ChessGateway {
     @MessageBody() data: { roomId: string; userId: string },
     @ConnectedSocket() client: Socket,
   ) {
-    const roomDetails = this.rooms.get(data.roomId);
+    const result = this.chessService.joinRoomById(data);
 
-    // console.log(this.rooms, roomDetails, new Date());
+    if (result) {
+      console.log(result);
+      await client.join(result.roomId);
 
-    if (
-      roomDetails &&
-      (roomDetails?.player1 === data.userId ||
-        roomDetails?.player2 === data.userId)
-    ) {
-      await client.join(data.roomId);
+      console.log(data.userId + ' has rooms ' + client.rooms.values());
+
       return client.emit('joined:chess', {
         message: `You joined the chess room ${data.roomId}`,
-        data: {
-          roomId: data.roomId,
-          ...this.rooms.get(data.roomId),
-        },
+        data: result,
       });
     }
-
-    // return client.emit('update:chess', data);
   }
 
   @SubscribeMessage('update:chess')
@@ -87,16 +67,26 @@ export class ChessGateway {
     @MessageBody()
     data: {
       roomId: string;
-      player: string;
-      move: Record<string, string>;
-      chessState: any;
+      userId: string;
+      move: Move;
+      // chessState: any;
     },
-    @ConnectedSocket() client: Socket,
+    // @ConnectedSocket() client: Socket,
   ) {
-    // console.log(data, 'Data');
+    const result = this.chessService.movePiece(data);
+    // console.log(result, 'res');
     // console.log(client.rooms, data, 'update:chess');
-    this.rooms.get(data.roomId).chessState = data.chessState;
+    // this.rooms.get(data.roomId).chessState = data.chessState;
 
-    return client.in([data.roomId]).emit('update:chess', data.move);
+    // console.log(client.)
+
+    if (!result) return;
+
+    // console.log(client.)
+
+    // return client.in(result.roomId).emit('update:chess', result);
+    return this.server.in(result.roomId).emit('update:chess', result);
+    // return client.broadcast('update:chess', result);
+    // return client.emit('update:chess', result);
   }
 }

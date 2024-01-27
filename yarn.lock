@@ -1737,6 +1737,11 @@ chardet@^0.7.0:
   resolved "https://registry.yarnpkg.com/chardet/-/chardet-0.7.0.tgz#90094849f0937f2eedc2425d0d28a9e5f0cbad9e"
   integrity sha512-mT8iDcrh03qDGRRmoA2hmBJnxpllMR+0/0qlzjqZES6NdiWDcZkCNAk4rPFZ9Q85r27unkiNNg8ZOiwZXBHwcA==
 
+chess.js@^1.0.0-beta.7:
+  version "1.0.0-beta.7"
+  resolved "https://registry.yarnpkg.com/chess.js/-/chess.js-1.0.0-beta.7.tgz#33cce95273c3d139ef1a1722ab8d0c5b21fdfcea"
+  integrity sha512-2qG/f3M9Lil/hBey2uoJy9zhNr1BWIXZngRUJFt7j1QqS5Y5Ywq8Rd3l7ZBCbyJjhsLhxTcVhv6xy7BfjC19Dw==
+
 chokidar@3.5.3, chokidar@^3.5.3:
   version "3.5.3"
   resolved "https://registry.yarnpkg.com/chokidar/-/chokidar-3.5.3.tgz#1cf37c8707b932bd1af1ae22c0432e2acd1903bd"
