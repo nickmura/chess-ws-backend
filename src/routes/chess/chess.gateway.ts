@@ -8,10 +8,14 @@ import {
 import { Server, Socket } from 'socket.io';
 import { ChessService } from './chess.service';
 import { Move } from 'chess.js';
+import { Cache } from '@nestjs/cache-manager';
 
 @WebSocketGateway({ transports: ['websocket'] })
 export class ChessGateway {
-  constructor(private chessService: ChessService) {}
+  constructor(
+    private chessService: ChessService,
+    private cacheManager: Cache,
+  ) {}
 
   @WebSocketServer()
   server: Server;
@@ -19,8 +23,10 @@ export class ChessGateway {
   // rooms = new Map();
   // unfilledRooms: Array<string> = [];
 
-  handleConnection() {
+  async handleConnection() {
     console.log('New connection');
+
+    // console.log(await this.cacheManager.store.keys());
 
     // console.log(this.rooms, this.unfilledRooms);
   }
@@ -30,11 +36,11 @@ export class ChessGateway {
     @MessageBody() data: { userId: string },
     @ConnectedSocket() client: Socket,
   ) {
-    const result = this.chessService.joinAnyRoom(data);
+    const result = await this.chessService.joinAnyRoom(data);
 
     await client.join(result.roomId);
 
-    console.log(result, 'result');
+    // console.log(result, 'result');
 
     return client.emit('joined:chess', {
       message: `You joined the chess room ${result.roomId}`,
@@ -47,13 +53,13 @@ export class ChessGateway {
     @MessageBody() data: { roomId: string; userId: string },
     @ConnectedSocket() client: Socket,
   ) {
-    const result = this.chessService.joinRoomById(data);
+    const result = await this.chessService.joinRoomById(data);
 
     if (result) {
-      console.log(result);
+      // console.log(result);
       await client.join(result.roomId);
 
-      console.log(data.userId + ' has rooms ' + client.rooms.values());
+      // console.log(data.userId + ' has rooms ' + client.rooms.values());
 
       return client.emit('joined:chess', {
         message: `You joined the chess room ${data.roomId}`,
@@ -63,7 +69,7 @@ export class ChessGateway {
   }
 
   @SubscribeMessage('update:chess')
-  handleUpdateChess(
+  async handleUpdateChess(
     @MessageBody()
     data: {
       roomId: string;
@@ -73,7 +79,7 @@ export class ChessGateway {
     },
     // @ConnectedSocket() client: Socket,
   ) {
-    const result = this.chessService.movePiece(data);
+    const result = await this.chessService.movePiece(data);
     // console.log(result, 'res');
     // console.log(client.rooms, data, 'update:chess');
     // this.rooms.get(data.roomId).chessState = data.chessState;

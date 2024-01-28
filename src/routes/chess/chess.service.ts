@@ -1,106 +1,153 @@
+import { Cache } from '@nestjs/cache-manager';
 import { Injectable } from '@nestjs/common';
 import { Chess, DEFAULT_POSITION, Move } from 'chess.js';
 import { randomUUID } from 'crypto';
+import { IChessRoom } from './chess.types';
 
 @Injectable()
 export class ChessService {
-  private rooms = new Map<
-    string,
-    {
-      player1: { userId: string | null; side: 'b' | 'w'; isConnected: boolean };
-      player2: { userId: string | null; side: 'b' | 'w'; isConnected: boolean };
-      fen: string;
-      turn: 'b' | 'w';
-    }
-  >();
-  /**
-   * list of roomId which have seat for a player
-   */
-  private unfilledRooms: Array<string> = [];
+  constructor(private cacheManager: Cache) {}
 
-  joinAnyRoom(data: { userId: string }) {
-    const unfilledRoom = this.unfilledRooms.shift();
+  async joinAnyRoom(data: { userId: string }) {
+    const cachedUnfilledRooms = await this.cacheManager.get(
+      'chess:unfilled-rooms',
+    );
+
+    // console.log('joinAnyRoom', { cachedUnfilledRooms });
+    const unfilledRooms = cachedUnfilledRooms
+      ? JSON.parse(String(cachedUnfilledRooms))
+      : [];
+
+    const unfilledRoom = unfilledRooms.shift();
+    // console.log('joinAnyRoom', { unfilledRoom });
+
+    const cachedRoom = await this.cacheManager.get(
+      `chess:rooms:${unfilledRoom}`,
+    );
+
+    // console.log('joinAnyRoom', { unfilledRoom });
+    const room: IChessRoom = cachedRoom ? JSON.parse(String(cachedRoom)) : {};
 
     if (unfilledRoom) {
-      this.rooms.set(unfilledRoom, {
-        ...this.rooms.get(unfilledRoom),
-        player2: {
-          userId: data.userId,
-          isConnected: true,
-          side: 'b',
-        },
-      });
+      room.player2 = {
+        userId: data.userId,
+        isConnected: true,
+        side: 'b',
+      };
 
-      return { roomId: unfilledRoom, ...this.rooms.get(unfilledRoom) };
+      await Promise.all([
+        this.cacheManager.set(
+          `chess:rooms:${unfilledRoom}`,
+          JSON.stringify(room),
+          0,
+        ),
+        this.cacheManager.set(
+          'chess:unfilled-rooms',
+          JSON.stringify(unfilledRooms),
+          0, // dont expire this cache
+        ),
+      ]);
+
+      return { roomId: unfilledRoom, ...room };
     }
 
     const roomId = randomUUID();
-    this.rooms.set(roomId, {
-      player1: { userId: data.userId, side: 'w', isConnected: true },
-      player2: { userId: null, side: 'b', isConnected: false },
-      fen: DEFAULT_POSITION,
-      turn: 'w',
-    });
-    this.unfilledRooms.push(roomId);
+    room.player1 = { userId: data.userId, side: 'w', isConnected: true };
+    room.player2 = { userId: null, side: 'b', isConnected: false };
+    room.fen = DEFAULT_POSITION;
+    room.turn = 'w';
 
-    return { roomId, ...this.rooms.get(roomId) };
+    await this.cacheManager.set(
+      `chess:rooms:${roomId}`,
+      JSON.stringify(room),
+      0,
+    );
+
+    unfilledRooms.push(roomId);
+
+    await this.cacheManager.set(
+      'chess:unfilled-rooms',
+      JSON.stringify(unfilledRooms),
+      0, // dont expire this cache
+    );
+
+    return { roomId, ...room };
   }
 
-  joinRoomById(data: { roomId: string; userId: string }) {
-    const roomDetails = this.rooms.get(data.roomId);
+  async joinRoomById(data: { roomId: string; userId: string }) {
+    const cachedRoom = await this.cacheManager.get(
+      `chess:rooms:${data.roomId}`,
+    );
 
     // if no room with given id exists
-    if (!roomDetails) return null;
+    if (!cachedRoom) return null;
+
+    // console.log('joinRoomById', { cachedRoom });
+    const room: IChessRoom = JSON.parse(String(cachedRoom));
+
+    // console.log('joinRoomById', { room });
 
     // if request room wasnt joined by user earlier
     if (
-      roomDetails.player1.userId !== data.userId &&
-      roomDetails.player2.userId !== data.userId
+      room.player1.userId !== data.userId &&
+      room.player2.userId !== data.userId
     )
       return null;
 
     return {
       roomId: data.roomId,
-      ...this.rooms.get(data.roomId),
+      ...room,
     };
   }
 
-  movePiece(data: { roomId: string; userId: string; move: Move }) {
-    const roomDetails = this.rooms.get(data.roomId);
+  async movePiece(data: { roomId: string; userId: string; move: Move }) {
+    const cachedRoom = await this.cacheManager.get(
+      `chess:rooms:${data.roomId}`,
+    );
 
-    if (!roomDetails) return null;
+    // console.log('movePiece', { cachedRoom });
 
+    if (!cachedRoom) return null;
+
+    const room: IChessRoom = JSON.parse(String(cachedRoom));
+
+    // console.log('movePiece', { room })
     if (
-      roomDetails.player1.userId !== data.userId &&
-      roomDetails.player2.userId !== data.userId
+      room.player1.userId !== data.userId &&
+      room.player2.userId !== data.userId
     )
       return null;
 
     const playerSide =
-      data.userId === roomDetails.player1.userId
-        ? roomDetails.player1.side
-        : roomDetails.player2.side;
+      data.userId === room.player1.userId
+        ? room.player1.side
+        : room.player2.side;
 
-    if (playerSide !== roomDetails.turn) return null;
+    if (playerSide !== room.turn) return null;
 
-    const chess = new Chess(roomDetails.fen);
+    const chess = new Chess(room.fen);
 
     try {
       chess.move(data.move);
-      roomDetails.fen = chess.fen();
-      roomDetails.turn = playerSide === 'w' ? 'b' : 'w';
+      room.fen = chess.fen();
+      room.turn = playerSide === 'w' ? 'b' : 'w';
 
+      await this.cacheManager.set(
+        `chess:rooms:${data.roomId}`,
+        JSON.stringify(room),
+        0,
+      );
       return {
         roomId: data.roomId,
         move: data.move,
-        ...roomDetails,
+        ...room,
       };
     } catch (error) {
       // invalid move
       return {
         roomId: data.roomId,
         move: {},
-        ...roomDetails,
+        ...room,
       };
     }
   }
