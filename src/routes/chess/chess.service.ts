@@ -9,24 +9,24 @@ export class ChessService {
   constructor(private cacheManager: Cache) {}
 
   async joinAnyRoom(data: { userId: string }) {
-    const cachedUnfilledRooms = await this.cacheManager.get(
+    const cachedUnfilledRooms = await this.cacheManager.get<Array<string>>(
       'chess:unfilled-rooms',
     );
 
     // console.log('joinAnyRoom', { cachedUnfilledRooms });
-    const unfilledRooms = cachedUnfilledRooms
-      ? JSON.parse(String(cachedUnfilledRooms))
-      : [];
+    const unfilledRooms = cachedUnfilledRooms || [];
+    // ? JSON.parse(String(cachedUnfilledRooms))
+    // : [];
 
     const unfilledRoom = unfilledRooms.shift();
     // console.log('joinAnyRoom', { unfilledRoom });
 
-    const cachedRoom = await this.cacheManager.get(
+    const cachedRoom = await this.cacheManager.get<IChessRoom>(
       `chess:rooms:${unfilledRoom}`,
     );
 
     // console.log('joinAnyRoom', { unfilledRoom });
-    const room: IChessRoom = cachedRoom ? JSON.parse(String(cachedRoom)) : {};
+    const room: IChessRoom = cachedRoom || ({} as IChessRoom); // ? JSON.parse(String(cachedRoom)) : {};
 
     if (unfilledRoom) {
       room.player2 = {
@@ -38,12 +38,14 @@ export class ChessService {
       await Promise.all([
         this.cacheManager.set(
           `chess:rooms:${unfilledRoom}`,
-          JSON.stringify(room),
+          // JSON.stringify(room),
+          room,
           0,
         ),
         this.cacheManager.set(
           'chess:unfilled-rooms',
-          JSON.stringify(unfilledRooms),
+          // JSON.stringify(unfilledRooms),
+          unfilledRooms,
           0, // dont expire this cache
         ),
       ]);
@@ -59,7 +61,8 @@ export class ChessService {
 
     await this.cacheManager.set(
       `chess:rooms:${roomId}`,
-      JSON.stringify(room),
+      // JSON.stringify(room),
+      room,
       0,
     );
 
@@ -67,7 +70,8 @@ export class ChessService {
 
     await this.cacheManager.set(
       'chess:unfilled-rooms',
-      JSON.stringify(unfilledRooms),
+      // JSON.stringify(unfilledRooms),
+      unfilledRooms,
       0, // dont expire this cache
     );
 
@@ -75,7 +79,7 @@ export class ChessService {
   }
 
   async joinRoomById(data: { roomId: string; userId: string }) {
-    const cachedRoom = await this.cacheManager.get(
+    const cachedRoom = await this.cacheManager.get<IChessRoom>(
       `chess:rooms:${data.roomId}`,
     );
 
@@ -83,7 +87,7 @@ export class ChessService {
     if (!cachedRoom) return null;
 
     // console.log('joinRoomById', { cachedRoom });
-    const room: IChessRoom = JSON.parse(String(cachedRoom));
+    const room: IChessRoom = cachedRoom; // JSON.parse(String(cachedRoom));
 
     // console.log('joinRoomById', { room });
 
@@ -101,7 +105,7 @@ export class ChessService {
   }
 
   async movePiece(data: { roomId: string; userId: string; move: Move }) {
-    const cachedRoom = await this.cacheManager.get(
+    const cachedRoom = await this.cacheManager.get<IChessRoom>(
       `chess:rooms:${data.roomId}`,
     );
 
@@ -109,7 +113,7 @@ export class ChessService {
 
     if (!cachedRoom) return null;
 
-    const room: IChessRoom = JSON.parse(String(cachedRoom));
+    const room: IChessRoom = cachedRoom; // JSON.parse(String(cachedRoom));
 
     // console.log('movePiece', { room })
     if (
@@ -134,7 +138,8 @@ export class ChessService {
 
       await this.cacheManager.set(
         `chess:rooms:${data.roomId}`,
-        JSON.stringify(room),
+        // JSON.stringify(room),
+        room,
         0,
       );
       return {
@@ -151,4 +156,10 @@ export class ChessService {
       };
     }
   }
+
+  // async getChessLobby(){
+  //   const cachedUnfilledRooms = await this.cacheManager.get<string>('chess:unfilled-rooms');
+  //   const unfilledRooms = cachedUnfilledRooms ? JSON.parse(cachedUnfilledRooms) : [];
+
+  // }
 }
