@@ -118,22 +118,46 @@ export class ChessService {
     // if no room with given id exists
     if (!cachedRoom) return null;
 
-    // console.log('joinRoomById', { cachedRoom });
-    const room: IChessRoom = cachedRoom; // JSON.parse(String(cachedRoom));
+    const room: IChessRoom = cachedRoom;
 
-    // console.log('joinRoomById', { room });
+    // if the chess room has one person seat available
+    // and current requesting user to connect isnt player 1
+    if (room.player2.userId === null && room.player1.userId !== data.userId) {
+      room.player2 = {
+        userId: data.userId,
+        isConnected: true,
+        side: 'b',
+      };
 
-    // if request room wasnt joined by user earlier
+      let unfilledRooms =
+        (await this.cacheManager.get<Array<string>>('chess:unfilled-rooms')) ||
+        [];
+
+      unfilledRooms = unfilledRooms.filter((id) => id !== data.roomId);
+
+      await Promise.all([
+        this.cacheManager.set('chess:unfilled-rooms', unfilledRooms),
+        this.cacheManager.set(`chess:rooms:${data.roomId}`, room),
+      ]);
+
+      return {
+        roomId: data.roomId,
+        ...room,
+      };
+    }
+
+    // if the requesting player was already in room
     if (
-      room.player1.userId !== data.userId &&
-      room.player2.userId !== data.userId
-    )
-      return null;
+      room.player1.userId === data.userId ||
+      room.player2.userId === data.userId
+    ) {
+      return {
+        roomId: data.roomId,
+        ...room,
+      };
+    }
 
-    return {
-      roomId: data.roomId,
-      ...room,
-    };
+    return null;
   }
 
   async movePiece(data: { roomId: string; userId: string; move: Move }) {
@@ -189,9 +213,33 @@ export class ChessService {
     }
   }
 
-  // async getChessLobby(){
-  //   const cachedUnfilledRooms = await this.cacheManager.get<string>('chess:unfilled-rooms');
-  //   const unfilledRooms = cachedUnfilledRooms ? JSON.parse(cachedUnfilledRooms) : [];
+  async getLobby() {
+    const unfilledRooms =
+      (await this.cacheManager.get<Array<string>>('chess:unfilled-rooms')) ||
+      [];
 
-  // }
+    // console.log(unfilledRooms, 'unfrim');
+
+    const lobbies = [];
+
+    await Promise.all(
+      unfilledRooms.map(async (roomId) => {
+        const room = await this.cacheManager.get<IChessRoom>(
+          `chess:rooms:${roomId}`,
+        );
+
+        // console.log(room, 'room');
+
+        if (room) {
+          lobbies.push(room);
+        }
+
+        // return;
+      }),
+    );
+
+    // console.log(lobbies, 'lobbies');
+
+    return lobbies;
+  }
 }

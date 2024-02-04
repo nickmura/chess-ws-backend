@@ -70,6 +70,8 @@ export class ChessGateway {
   ) {
     const result = await this.chessService.joinRoomById(data);
 
+    // console.log({ result });
+
     if (result) {
       // console.log(result);
       await client.join(result.roomId);
@@ -109,6 +111,16 @@ export class ChessGateway {
     return this.server.in(result.roomId).emit('update:chess', result);
     // return client.broadcast('update:chess', result);
     // return client.emit('update:chess', result);
+  }
+
+  @SubscribeMessage('chess:lobby')
+  async handleGetChessLobby() {
+    const lobbies = await this.chessService.getLobby();
+
+    return this.server.emit('chess:lobby', {
+      message: 'Successfully retrived lobbies',
+      data: lobbies,
+    });
   }
 
   async handleDisconnect() {
