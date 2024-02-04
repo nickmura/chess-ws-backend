@@ -5,6 +5,7 @@ import { ChessModule } from './routes/chess/chess.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ConfigModule } from '@nestjs/config';
 import { RedisOptions } from './modules/cache';
+import { ChatModule } from './routes/chat/chat.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { RedisOptions } from './modules/cache';
     ConfigModule.forRoot({ isGlobal: true }),
     CacheModule.registerAsync(RedisOptions),
     ChessModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [AppService],
