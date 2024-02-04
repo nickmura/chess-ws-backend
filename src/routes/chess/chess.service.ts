@@ -8,6 +8,38 @@ import { IChessRoom } from './chess.types';
 export class ChessService {
   constructor(private cacheManager: Cache) {}
 
+  async createChessRoom(data: { userId: string; stake: number }) {
+    const roomId = randomUUID();
+    const room: IChessRoom = {
+      fen: DEFAULT_POSITION,
+      onlineCount: 1,
+      player1: {
+        isConnected: true,
+        side: 'w',
+        userId: data.userId,
+      },
+      player2: {
+        isConnected: false,
+        side: 'b',
+        userId: null,
+      },
+      stake: data.stake,
+      turn: 'w',
+      roomId,
+    };
+
+    const unfilledRooms =
+      (await this.cacheManager.get<Array<string>>('chess:unfilled-rooms')) ||
+      [];
+
+    await Promise.all([
+      this.cacheManager.set(`chess:rooms:${roomId}`, room, 0),
+      this.cacheManager.set('chess:unfilled-rooms', [...unfilledRooms, roomId]),
+    ]);
+
+    return room;
+  }
+
   async joinAnyRoom(data: { userId: string }) {
     const cachedUnfilledRooms = await this.cacheManager.get<Array<string>>(
       'chess:unfilled-rooms',

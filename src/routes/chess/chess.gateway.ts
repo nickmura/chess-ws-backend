@@ -31,6 +31,21 @@ export class ChessGateway {
     // console.log(this.rooms, this.unfilledRooms);
   }
 
+  @SubscribeMessage('create:chess-room')
+  async createChessRoom(
+    @MessageBody() data: { userId: string; stake: number },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const result = await this.chessService.createChessRoom(data);
+
+    await client.join(result.roomId);
+
+    return client.emit('created:chess-room', {
+      message: `Successfully created chessroom with ${result.stake} wager!`,
+      data: result,
+    });
+  }
+
   @SubscribeMessage('join:chess')
   async handleJoinChess(
     @MessageBody() data: { userId: string },
@@ -95,4 +110,13 @@ export class ChessGateway {
     // return client.broadcast('update:chess', result);
     // return client.emit('update:chess', result);
   }
+
+  async handleDisconnect() {
+    // console.log('disconnecting', data);
+  }
+
+  // @SubscribeMessage('chess:lobby')
+  // async handleChessLobby() {
+  //   return this.server.emit('chess:lobby', this.chessService.getChessLobby());
+  // }
 }
