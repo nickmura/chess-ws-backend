@@ -6,20 +6,19 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { ConfigModule } from '@nestjs/config';
 import { RedisOptions } from './modules/cache';
 import { ChatModule } from './routes/chat/chat.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './routes/auth/auth.module';
+import { dataSourceOptions } from './modules/dataSource';
 
 @Module({
   imports: [
-    //     CacheModule.registerAsync<RedisClientOptions>({
-    // useFactory: () => redisStore,
-    //       // Store-specific configuration:
-    //       // host: 'localhost',
-    //       // port: 6379,
-
-    //     }),
     ConfigModule.forRoot({ isGlobal: true }),
     CacheModule.registerAsync(RedisOptions),
+    TypeOrmModule.forRoot(dataSourceOptions),
     ChessModule,
     ChatModule,
+    AuthModule,
+    // dataSource
   ],
   controllers: [AppController],
   providers: [AppService],
