@@ -1,15 +1,15 @@
 import { Cache } from '@nestjs/cache-manager';
 import { Injectable } from '@nestjs/common';
 import { Chess, DEFAULT_POSITION, Move } from 'chess.js';
-import { randomUUID } from 'crypto';
 import { IChessRoom } from './chess.types';
+import { nanoid } from 'nanoid';
 
 @Injectable()
 export class ChessService {
   constructor(private cacheManager: Cache) {}
 
   async createChessRoom(data: { userId: string; stake: number }) {
-    const roomId = randomUUID();
+    const roomId = nanoid(8);
     const room: IChessRoom = {
       fen: DEFAULT_POSITION,
       onlineCount: 1,
@@ -85,7 +85,7 @@ export class ChessService {
       return { roomId: unfilledRoom, ...room };
     }
 
-    const roomId = randomUUID();
+    const roomId = nanoid(8);
     room.player1 = { userId: data.userId, side: 'w', isConnected: true };
     room.player2 = { userId: null, side: 'b', isConnected: false };
     room.fen = DEFAULT_POSITION;
