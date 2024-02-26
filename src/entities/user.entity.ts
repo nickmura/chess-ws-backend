@@ -2,20 +2,17 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
 @Entity({ name: 'users' })
 export class User {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn()
   id: string;
 
-  @Column({ type: 'varchar' })
-  walletAddress: string;
-
   @Column({ type: 'varchar', length: 255, nullable: true })
-  username: string;
+  nickname: string;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -14,39 +14,31 @@ export class AuthService {
     // console.log(data);
     const userExists = await this.userRepository.findOne({
       where: {
-        walletAddress: data.username,
+        id: data.username,
       },
     });
 
     if (userExists) {
-      return await this.loginUser(userExists.walletAddress);
+      return await this.loginUser(userExists.id);
     }
 
     return await this.registerUser(data.username);
   }
 
-  async loginUser(walletAddress: string) {
-    // logic for walletAddress validation/siging etc?
-    // console.log(walletAddress);
+  async loginUser(id: string) {
+    // logic for id validation/siging etc?
+    // console.log(id);
 
-    return await this.getUserByWalletAddress(walletAddress);
+    return await this.getUserById(id);
   }
 
   async registerUser(walletAddress: string) {
     const user = new User();
-    user.walletAddress = walletAddress;
+    user.id = walletAddress;
 
     // console.log(user, 'User');
 
     return await this.userRepository.save(user);
-  }
-
-  async getUserByWalletAddress(walletAddress: string) {
-    const user = await this.userRepository.findOne({
-      where: { walletAddress },
-    });
-
-    return user;
   }
 
   async getUserById(id: string) {

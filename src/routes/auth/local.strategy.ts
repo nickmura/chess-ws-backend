@@ -15,7 +15,7 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
     // done: any,
   ) {
     // console.log(walletAddress, 'walletaddress strategy', password, done);
-    const user = await this.authService.getUserByWalletAddress(username);
+    const user = await this.authService.getUserById(username);
 
     if (!user) {
       throw new UnauthorizedException();
