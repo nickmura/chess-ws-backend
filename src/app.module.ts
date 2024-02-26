@@ -9,6 +9,7 @@ import { ChatModule } from './routes/chat/chat.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './routes/auth/auth.module';
 import { dataSourceOptions } from './modules/dataSource';
+import { UserModule } from './routes/user/user.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { dataSourceOptions } from './modules/dataSource';
     ChessModule,
     ChatModule,
     AuthModule,
+    UserModule,
     // dataSource
   ],
   controllers: [AppController],
