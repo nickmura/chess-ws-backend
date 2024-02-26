@@ -1,6 +1,5 @@
 import { Cache } from '@nestjs/cache-manager';
 import {
-  MessageBody,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
@@ -20,8 +19,12 @@ export class ChatGateway {
     // console.log('New connection');
   }
 
+  async afterInit(data: Server) {
+    this.server = data;
+  }
+
   @SubscribeMessage('chat:messages')
-  async getChatRoomMessages(@MessageBody() data: { roomId: string }) {
+  async getChatRoomMessages(_, data: { roomId: string }) {
     let chat = await this.cacheManager.get<Array<IChat>>(
       `chat-room:${data.roomId}`,
     );
@@ -39,7 +42,8 @@ export class ChatGateway {
 
   @SubscribeMessage('chat:send-message')
   async createChatMessage(
-    @MessageBody() data: { roomId: string; userId: string; message: string },
+    _,
+    data: { roomId: string; userId: string; message: string },
   ) {
     let chat = await this.cacheManager.get<Array<IChat>>(
       `chat-room:${data.roomId}`,

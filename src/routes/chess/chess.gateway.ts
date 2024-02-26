@@ -1,6 +1,4 @@
 import {
-  ConnectedSocket,
-  MessageBody,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
@@ -20,21 +18,18 @@ export class ChessGateway {
   @WebSocketServer()
   server: Server;
 
-  // rooms = new Map();
-  // unfilledRooms: Array<string> = [];
-
   async handleConnection() {
     console.log('New connection');
+  }
 
-    // console.log(await this.cacheManager.store.keys());
-
-    // console.log(this.rooms, this.unfilledRooms);
+  async afterInit(data: Server) {
+    this.server = data;
   }
 
   @SubscribeMessage('create:chess-room')
   async createChessRoom(
-    @MessageBody() data: { userId: string; stake: number },
-    @ConnectedSocket() client: Socket,
+    client: Socket,
+    data: { userId: string; stake: number },
   ) {
     const result = await this.chessService.createChessRoom(data);
 
@@ -47,10 +42,7 @@ export class ChessGateway {
   }
 
   @SubscribeMessage('join:chess')
-  async handleJoinChess(
-    @MessageBody() data: { userId: string },
-    @ConnectedSocket() client: Socket,
-  ) {
+  async handleJoinChess(client: Socket, data: { userId: string }) {
     const result = await this.chessService.joinAnyRoom(data);
 
     await client.join(result.roomId);
@@ -65,8 +57,8 @@ export class ChessGateway {
 
   @SubscribeMessage('join:chess:room')
   async handleRoomIdJoin(
-    @MessageBody() data: { roomId: string; userId: string },
-    @ConnectedSocket() client: Socket,
+    client: Socket,
+    data: { roomId: string; userId: string },
   ) {
     const result = await this.chessService.joinRoomById(data);
 
@@ -87,14 +79,14 @@ export class ChessGateway {
 
   @SubscribeMessage('update:chess')
   async handleUpdateChess(
-    @MessageBody()
+    _,
     data: {
       roomId: string;
       userId: string;
       move: Move;
       // chessState: any;
     },
-    // @ConnectedSocket() client: Socket,
+    // client: Socket,
   ) {
     const result = await this.chessService.movePiece(data);
     // console.log(result, 'res');
@@ -117,6 +109,8 @@ export class ChessGateway {
   async handleGetChessLobby() {
     const lobbies = await this.chessService.getLobby();
 
+    // console.log(lobbies, this.server, 'here');
+
     return this.server.emit('chess:lobby', {
       message: 'Successfully retrived lobbies',
       data: lobbies,
@@ -126,9 +120,4 @@ export class ChessGateway {
   async handleDisconnect() {
     // console.log('disconnecting', data);
   }
-
-  // @SubscribeMessage('chess:lobby')
-  // async handleChessLobby() {
-  //   return this.server.emit('chess:lobby', this.chessService.getChessLobby());
-  // }
 }
