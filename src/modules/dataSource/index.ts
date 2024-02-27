@@ -4,14 +4,20 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
-  host: 'localhost',
-  port: 5432,
-  password: 'password',
-  username: 'postgres',
+  host: 'db-trxmini-do-user-13425347-0.c.db.ondigitalocean.com',
+  port: 25060,
+  password: 'AVNS_x22NfBQsR8GZcj9zaBT',
+  username: 'doadmin',
   entities: [User, Session],
-  database: 'trxmini.games',
+  database: 'defaultdb',
   synchronize: true,
   logging: true,
+  ssl: true,
+  extra: {
+    ssl: {
+      rejectUnauthorized: false,
+    },
+  },
 };
 
 export const dataSource = new DataSource(dataSourceOptions);
@@ -24,5 +30,3 @@ dataSource
   .catch((err) => {
     console.error('Error during Data Source initialization', err);
   });
-
-// export { dataSource };
