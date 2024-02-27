@@ -25,9 +25,9 @@ async function bootstrap() {
       resave: false,
       saveUninitialized: false,
       cookie: {
-        domain: '.hammerhead-app-3n8iz.ondigitalocean.app',
+        domain: 'localhost',
         httpOnly: true,
-        secure: true,
+        secure: false,
         maxAge: 1000 * 60 * 60 * 24 * 7,
         path: '/',
         sameSite: 'strict',
