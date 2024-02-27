@@ -25,7 +25,7 @@ async function bootstrap() {
       resave: false,
       saveUninitialized: false,
       cookie: {
-        domain: 'https://squid-app-cwhr6.ondigitalocean.app',
+        domain: '.ondigitalocean.app',
         httpOnly: true,
         secure: false,
         maxAge: 1000 * 60 * 60 * 24 * 7,
