@@ -13,7 +13,7 @@ async function bootstrap() {
   const sessionRepository = dataSource.getRepository(Session);
 
   app.enableCors({
-    origin: 'https://hammerhead-app-3n8iz.ondigitalocean.app',
+    origin: 'http://localhost:3000',
     credentials: true,
   });
 
