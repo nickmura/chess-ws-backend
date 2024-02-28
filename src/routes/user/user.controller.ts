@@ -1,12 +1,13 @@
 import { Body, Controller, Patch, Session, UseGuards } from '@nestjs/common';
 import { UserService } from './user.service';
-import { AuthenticatedGuard } from '../auth/authenticated.guard';
 import { UpdateNicknameDto } from './dto/user.dto';
+// import { AuthenticatedGuard } from '../auth/authenticated.guard';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('user')
 export class UserController {
   constructor(private userService: UserService) {}
-  @UseGuards(AuthenticatedGuard)
+  @UseGuards(AuthGuard('jwt'))
   @Patch('nickname')
   async updateNickname(
     @Body() data: UpdateNicknameDto,
