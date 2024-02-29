@@ -297,7 +297,24 @@ export class ChessService {
             cachedRoom.player1.userId
           : null;
 
-    if (!winner) return null;
+    // room has player two but winner is null means, requesting userId isnt neither player1 nor player2
+    if (!winner && cachedRoom.player2.userId) return null;
+
+    // room only has one player, so delete from cache without saving in database
+    if (!cachedRoom.player2.userId) {
+      await this.cacheManager.del(cacheKey);
+      await this.cacheManager.del(`chat-room:${data.roomId}`);
+
+      let unfilledRooms =
+        (await this.cacheManager.get<Array<string>>('chess:unfilled-rooms')) ||
+        [];
+
+      unfilledRooms = unfilledRooms.filter((roomId) => roomId !== data.roomId);
+
+      await this.cacheManager.set('chess:unfilled-rooms', unfilledRooms);
+
+      return true;
+    }
 
     const chessGame = new ChessGame();
 
@@ -314,7 +331,8 @@ export class ChessService {
     chessGame.wager = cachedRoom.stake;
     chessGame.winner = winner;
 
-    await this.cacheManager.del(`chess:rooms:${data.roomId}`);
+    await this.cacheManager.del(cacheKey);
+    await this.cacheManager.del(`chat-room:${data.roomId}`);
 
     return await this.chessGameRepository.save(chessGame);
   }
