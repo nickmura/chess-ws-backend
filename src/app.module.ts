@@ -35,6 +35,7 @@ import { ChessGame } from './entities/chessGame.entity';
               rejectUnauthorized: false,
             },
           },
+          useUTC: true,
         };
       },
       inject: [ConfigService],

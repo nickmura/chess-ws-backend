@@ -123,7 +123,36 @@ export class ChessService {
     );
 
     // if no room with given id exists
-    if (!cachedRoom) return null;
+    if (!cachedRoom) {
+      const endedGame = await this.chessGameRepository.findOneBy({
+        id: data.roomId,
+      });
+
+      if (endedGame) {
+        // return ended game so that we can show it was ended when someone visits the chess url
+        return {
+          fen: endedGame.fen,
+          onlineCount: 0,
+          player1: {
+            isConnected: false,
+            side: endedGame.player1.side,
+            userId: endedGame.player1.id,
+          },
+          player2: {
+            isConnected: false,
+            side: endedGame.player2.side,
+            userId: endedGame.player2.id,
+          },
+          roomId: endedGame.id,
+          stake: endedGame.wager,
+          turn: 'w',
+          endedAt: new Date(endedGame.createdAt),
+          winner: endedGame.winner,
+        } as IChessRoom;
+      } else {
+        return null;
+      }
+    }
 
     const room: IChessRoom = cachedRoom;
 

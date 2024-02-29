@@ -69,7 +69,7 @@ export class ChessGateway {
     // console.log({ result });
 
     if (result) {
-      // console.log(result);
+      // console.log(result, 'result');
       await client.join(result.roomId);
 
       // console.log(data.userId + ' has rooms ' + client.rooms.values());
