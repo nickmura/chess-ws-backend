@@ -10,6 +10,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './routes/auth/auth.module';
 import { UserModule } from './routes/user/user.module';
 import { User } from './entities/user.entity';
+import { ChessGame } from './entities/chessGame.entity';
 
 @Module({
   imports: [
@@ -24,7 +25,7 @@ import { User } from './entities/user.entity';
           port: +configService.get<string>('DB_PORT'),
           password: configService.get<string>('DB_PASSWORD'),
           username: configService.get<string>('DB_USERNAME'),
-          entities: [User, Session],
+          entities: [User, Session, ChessGame],
           database: configService.get<string>('DB_NAME'),
           synchronize: configService.get<string>('NODE_ENV') === 'development',
           logging: configService.get<string>('NODE_ENV') === 'development',
