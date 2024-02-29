@@ -22,6 +22,10 @@ export class ChessGateway {
     console.log('New connection');
   }
 
+  async handleDisconnect() {
+    // console.log('disconnecting', data);
+  }
+
   async afterInit(data: Server) {
     this.server = data;
   }
@@ -105,6 +109,18 @@ export class ChessGateway {
     // return client.emit('update:chess', result);
   }
 
+  @SubscribeMessage('end:chess')
+  async handleLeaveChess(_, data: { roomId: string; userId: string }) {
+    if (!data?.roomId || !data.userId) return;
+    const result = await this.chessService.endChessRoom(data);
+
+    if (!result) return;
+
+    return this.server
+      .in(data.roomId)
+      .emit('end:chess', { message: 'This room has ended', data: result });
+  }
+
   @SubscribeMessage('chess:lobby')
   async handleGetChessLobby() {
     const lobbies = await this.chessService.getLobby();
@@ -115,9 +131,5 @@ export class ChessGateway {
       message: 'Successfully retrived lobbies',
       data: lobbies,
     });
-  }
-
-  async handleDisconnect() {
-    // console.log('disconnecting', data);
   }
 }

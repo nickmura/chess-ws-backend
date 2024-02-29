@@ -3,10 +3,17 @@ import { Injectable } from '@nestjs/common';
 import { Chess, DEFAULT_POSITION, Move } from 'chess.js';
 import { IChessRoom } from './chess.types';
 import { nanoid } from 'nanoid';
+import { InjectRepository } from '@nestjs/typeorm';
+import { ChessGame } from 'src/entities/chessGame.entity';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class ChessService {
-  constructor(private cacheManager: Cache) {}
+  constructor(
+    private cacheManager: Cache,
+    @InjectRepository(ChessGame)
+    private chessGameRepository: Repository<ChessGame>,
+  ) {}
 
   async createChessRoom(data: { userId: string; stake: number }) {
     const roomId = nanoid(8);
@@ -241,5 +248,45 @@ export class ChessService {
     // console.log(lobbies, 'lobbies');
 
     return lobbies;
+  }
+
+  async endChessRoom(data: { roomId: string; userId: string }) {
+    const cacheKey = `chess:rooms:${data.roomId}`;
+    const cachedRoom = await this.cacheManager.get<IChessRoom>(cacheKey);
+
+    if (!cachedRoom) return null;
+
+    // requesting userId is the one who wants to leave the game so the other remaining player is the winner
+    const winner =
+      // if player 1 is requesting to end the game
+      cachedRoom.player1.userId === data.userId
+        ? // player 2 is winner
+          cachedRoom.player2.userId
+        : // if player 2 is requesting to end the game
+          cachedRoom.player2.userId === data.userId
+          ? // player 1 is winner
+            cachedRoom.player1.userId
+          : null;
+
+    if (!winner) return null;
+
+    const chessGame = new ChessGame();
+
+    chessGame.fen = cachedRoom.fen;
+    chessGame.id = cachedRoom.roomId;
+    chessGame.player1 = {
+      id: cachedRoom.player1.userId,
+      side: cachedRoom.player1.side,
+    };
+    chessGame.player2 = {
+      id: cachedRoom.player2.userId,
+      side: cachedRoom.player2.side,
+    };
+    chessGame.wager = cachedRoom.stake;
+    chessGame.winner = winner;
+
+    await this.cacheManager.del(`chess:rooms:${data.roomId}`);
+
+    return await this.chessGameRepository.save(chessGame);
   }
 }
