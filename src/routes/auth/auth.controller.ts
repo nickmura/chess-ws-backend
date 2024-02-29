@@ -7,12 +7,13 @@ import { Request } from 'express';
 // import { AuthGuard } from '@nestjs/passport';
 import { LocalAuthGuard } from './local.auth.guard';
 // import { AuthenticatedGuard } from './authenticated.guard';
-import { AuthGuard } from '@nestjs/passport';
+// import { AuthGuard } from '@nestjs/passport';
+import { AuthenticatedGuard } from './authenticated.guard';
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthenticatedGuard)
   @Get('me')
   async getAuthUser(@Req() req: Request & { user: { id: string } }) {
     const user = await this.authService.getUserById(req.user.id);
