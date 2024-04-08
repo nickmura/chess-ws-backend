@@ -33,7 +33,7 @@ export class ChessGateway {
   @SubscribeMessage('create:chess-room')
   async createChessRoom(
     client: Socket,
-    data: { userId: string; stake: number },
+    data: { userId: string; stake: number; roomId: string },
   ) {
     const result = await this.chessService.createChessRoom(data);
 
@@ -130,6 +130,21 @@ export class ChessGateway {
     return this.server.emit('chess:lobby', {
       message: 'Successfully retrived lobbies',
       data: lobbies,
+    });
+  }
+
+  @SubscribeMessage('chess:collect-win')
+  async handleCollectWin(data: {
+    userId: string;
+    txId: string;
+    roomId: string;
+  }) {
+    const result = await this.chessService.collectWin(data);
+
+    if (!result) return;
+
+    return this.server.in(data.roomId).emit('chess:collected-win', {
+      message: `Player ${data.userId} has successfully collected their win.`,
     });
   }
 }

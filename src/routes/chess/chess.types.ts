@@ -6,4 +6,10 @@ export type IChessRoom = {
   stake: number;
   onlineCount: number;
   roomId: string;
+  index?: string;
+  txns: Array<{
+    player: string;
+    txnId: string;
+    action: 'collect-win' | 'collect-draw' | 'avert-game' | 'end-game';
+  }>;
 };

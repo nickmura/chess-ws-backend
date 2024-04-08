@@ -6,6 +6,7 @@ import { nanoid } from 'nanoid';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ChessGame } from 'src/entities/chessGame.entity';
 import { Repository } from 'typeorm';
+import { CHESS_EVENT_URL } from 'src/constants';
 
 @Injectable()
 export class ChessService {
@@ -15,8 +16,13 @@ export class ChessService {
     private chessGameRepository: Repository<ChessGame>,
   ) {}
 
-  async createChessRoom(data: { userId: string; stake: number }) {
-    const roomId = nanoid(8);
+  async createChessRoom(data: {
+    userId: string;
+    stake: number;
+    roomId: string;
+  }) {
+    // const roomId = nanoid(8);
+
     const room: IChessRoom = {
       fen: DEFAULT_POSITION,
       onlineCount: 1,
@@ -32,16 +38,39 @@ export class ChessService {
       },
       stake: data.stake,
       turn: 'w',
-      roomId,
+      roomId: data.roomId,
+      txns: [],
     };
 
     const unfilledRooms =
       (await this.cacheManager.get<Array<string>>('chess:unfilled-rooms')) ||
       [];
 
+    let counter = 0;
+    if (room.stake !== 0) {
+      while (!room?.index && counter < 5000) {
+        counter++;
+        try {
+          const res = await (await fetch(CHESS_EVENT_URL))?.json();
+
+          // find the index number of block associated with this game room
+          // and save it
+          room.index = res?.data?.find(
+            (event: { result: { index?: string; _gameId: string } }) =>
+              event?.result._gameId === data.roomId,
+          )?.result?.index;
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+
     await Promise.all([
-      this.cacheManager.set(`chess:rooms:${roomId}`, room, 0),
-      this.cacheManager.set('chess:unfilled-rooms', [...unfilledRooms, roomId]),
+      this.cacheManager.set(`chess:rooms:${data.roomId}`, room, 0),
+      this.cacheManager.set('chess:unfilled-rooms', [
+        ...unfilledRooms,
+        data.roomId,
+      ]),
     ]);
 
     return room;
@@ -146,9 +175,12 @@ export class ChessService {
           roomId: endedGame.id,
           stake: endedGame.wager,
           turn: 'w',
+          // endedAt is set to endedGame's createdAt because
+          // chess room is first stored in redis only
+          // then after the game ends it is moved to database
           endedAt: new Date(endedGame.createdAt),
           winner: endedGame.winner,
-        } as IChessRoom;
+        } as unknown as IChessRoom;
       } else {
         return null;
       }
@@ -316,23 +348,71 @@ export class ChessService {
       return true;
     }
 
-    const chessGame = new ChessGame();
-
-    chessGame.fen = cachedRoom.fen;
-    chessGame.id = cachedRoom.roomId;
-    chessGame.player1 = {
-      id: cachedRoom.player1.userId,
-      side: cachedRoom.player1.side,
-    };
-    chessGame.player2 = {
-      id: cachedRoom.player2.userId,
-      side: cachedRoom.player2.side,
-    };
-    chessGame.wager = cachedRoom.stake;
-    chessGame.winner = winner;
+    const chessGame = await this.persistChessGame(cachedRoom, winner);
 
     await this.cacheManager.del(cacheKey);
     await this.cacheManager.del(`chat-room:${data.roomId}`);
+
+    return await this.chessGameRepository.save(chessGame);
+  }
+
+  async collectWin(data: { roomId: string; txId: string; userId: string }) {
+    const cacheKey = `chess:rooms:${data.roomId}`;
+    const room = await this.cacheManager.get<IChessRoom>(cacheKey);
+
+    if (!room) return null;
+
+    // requesting userId isnt in the room
+    if (
+      data.userId !== room.player1.userId &&
+      data.userId !== room.player2.userId
+    )
+      return null;
+
+    const chess = new Chess(room.fen);
+    const turn = chess.turn();
+
+    const isGameOver = chess.isCheckmate() || chess.isStalemate();
+
+    if (!isGameOver) return null;
+
+    const requestingUserSide =
+      room.player1.userId === data.userId
+        ? room.player1.side
+        : room.player2.side;
+
+    // if it is checkmate/stalemate and it's white's turn then it means black has won
+    // so if requesting user's side is equal to whose turn is in chess
+    // then it means the requesting user is actually the loser and not the winner
+    if (turn === requestingUserSide) return null;
+
+    const chessGame = await this.persistChessGame(room, data.userId);
+
+    chessGame.txns.push({
+      action: 'collect-win',
+      player: data.userId,
+      txnId: data.txId,
+    });
+
+    return true;
+  }
+
+  async persistChessGame(room: IChessRoom, winner: string) {
+    const chessGame = new ChessGame();
+
+    chessGame.fen = room.fen;
+    chessGame.id = room.roomId;
+    chessGame.player1 = {
+      id: room.player1.userId,
+      side: room.player1.side,
+    };
+    chessGame.player2 = {
+      id: room.player2.userId,
+      side: room.player2.side,
+    };
+    chessGame.wager = room.stake;
+    chessGame.winner = winner;
+    chessGame.index = room.index;
 
     return await this.chessGameRepository.save(chessGame);
   }

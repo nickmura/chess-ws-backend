@@ -34,6 +34,16 @@ export class ChessGame extends BaseEntity {
   @Column({ type: 'varchar' })
   winner: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  index: string;
+
+  @Column({ type: 'jsonb' })
+  txns: Array<{
+    player: string;
+    txnId: string;
+    action: 'collect-win' | 'collect-draw' | 'avert-game' | 'end-game';
+  }>;
+
   @CreateDateColumn()
   createdAt: Date;
 
