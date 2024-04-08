@@ -394,10 +394,77 @@ export class ChessService {
       txnId: data.txId,
     });
 
+    await Promise.all([
+      this.chessGameRepository.save(chessGame),
+      this.cacheManager.del(cacheKey),
+      this.cacheManager.del(`chat-room:${data.roomId}`),
+    ]);
+
     return true;
   }
 
-  async persistChessGame(room: IChessRoom, winner: string) {
+  async collectDraw(data: { roomId: string; txId: string; userId: string }) {
+    const cacheKey = `chess:rooms:${data.roomId}`;
+    const room = await this.cacheManager.get<IChessRoom>(cacheKey);
+
+    if (!room) return null;
+
+    // requesting userId isnt in the room
+    if (
+      data.userId !== room.player1.userId &&
+      data.userId !== room.player2.userId
+    )
+      return null;
+
+    const chess = new Chess(room.fen);
+
+    const isDraw = chess.isDraw();
+
+    if (!isDraw) return null;
+
+    const chessGame =
+      (await this.chessGameRepository.findOneBy({ id: data.roomId })) ||
+      (await this.persistChessGame(room, null));
+
+    // check if current requesting user has already collected draw
+    const alreadyCollectedDraw = chessGame.txns.find(
+      (txn) => txn.player === data.userId && txn.action === 'collect-draw',
+    );
+
+    if (!alreadyCollectedDraw) {
+      chessGame.txns.push({
+        action: 'collect-draw',
+        player: data.userId,
+        txnId: data.txId,
+      });
+
+      await this.chessGameRepository.save(chessGame);
+
+      const bothPlayersCollectedDraw =
+        chessGame.txns.find(
+          (txn) =>
+            txn.player === chessGame.player1.id &&
+            txn.action === 'collect-draw',
+        ) &&
+        chessGame.txns.find(
+          (txn) =>
+            txn.player === chessGame.player2.id &&
+            txn.action === 'collect-draw',
+        );
+
+      if (bothPlayersCollectedDraw) {
+        // delete cached data so the game is ended game and only accessible in db
+        await Promise.all([
+          this.cacheManager.del(cacheKey),
+          this.cacheManager.del(`chat-room:${data.roomId}`),
+        ]);
+      }
+      return true;
+    }
+    return null;
+  }
+
+  async persistChessGame(room: IChessRoom, winner: string | null) {
     const chessGame = new ChessGame();
 
     chessGame.fen = room.fen;

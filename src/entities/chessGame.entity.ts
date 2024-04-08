@@ -30,8 +30,8 @@ export class ChessGame extends BaseEntity {
   @Column({ type: 'float' })
   wager: number;
 
-  /** id of winning user */
-  @Column({ type: 'varchar' })
+  /** id of winning user or null when game was a draw*/
+  @Column({ type: 'varchar', nullable: true })
   winner: string;
 
   @Column({ type: 'varchar', nullable: true })

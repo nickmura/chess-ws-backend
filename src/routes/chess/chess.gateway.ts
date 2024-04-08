@@ -144,7 +144,22 @@ export class ChessGateway {
     if (!result) return;
 
     return this.server.in(data.roomId).emit('chess:collected-win', {
-      message: `Player ${data.userId} has successfully collected their win.`,
+      message: `[Match Win] Player ${data.userId} has successfully collected their win.`,
+    });
+  }
+
+  @SubscribeMessage('chess:collect-draw')
+  async handleCollectDraw(data: {
+    userId: string;
+    txId: string;
+    roomId: string;
+  }) {
+    const result = await this.chessService.collectDraw(data);
+
+    if (!result) return;
+
+    return this.server.in(data.roomId).emit('chess:collected-draw', {
+      message: `[Match Draw] Player ${data.userId} has successfully collected their stake.`,
     });
   }
 }
