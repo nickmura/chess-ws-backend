@@ -464,6 +464,38 @@ export class ChessService {
     return null;
   }
 
+  async avertGame(data: { roomId: string; txId: string; userId: string }) {
+    const cacheKey = `chess:rooms:${data.roomId}`;
+    const room = await this.cacheManager.get<IChessRoom>(cacheKey);
+
+    if (!room) return null;
+
+    // room already has another plyaer
+    // cannot be averted
+    if (room.player2.userId) {
+      return null;
+    }
+
+    // requesting userId isnt in the room
+    if (data.userId !== room.player1.userId) return null;
+
+    const chessGame = await this.persistChessGame(room, null);
+
+    chessGame.txns.push({
+      action: 'avert-game',
+      player: data.userId,
+      txnId: data.txId,
+    });
+
+    await Promise.all([
+      await this.chessGameRepository.save(chessGame),
+      this.cacheManager.del(cacheKey),
+      this.cacheManager.del(`chat-room:${data.roomId}`),
+    ]);
+
+    return true;
+  }
+
   async persistChessGame(room: IChessRoom, winner: string | null) {
     const chessGame = new ChessGame();
 

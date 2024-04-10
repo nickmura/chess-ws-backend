@@ -162,4 +162,15 @@ export class ChessGateway {
       message: `[Match Draw] Player ${data.userId} has successfully collected their stake.`,
     });
   }
+
+  @SubscribeMessage('chess:avert')
+  async handleAvert(data: { userId: string; txId: string; roomId: string }) {
+    const result = await this.chessService.avertGame(data);
+
+    if (!result) return;
+
+    return this.server.in(data.roomId).emit('chess:averted', {
+      message: `[Match Averted] You (${data.userId}) averted the game and has successfully collected your stake.`,
+    });
+  }
 }
