@@ -398,6 +398,34 @@ export class ChessService {
     // then it means the requesting user is actually the loser and not the winner
     if (turn === requestingUserSide) return null;
 
+    let counter = 0;
+
+    let doesWinEventExists = false;
+
+    if (room.stake !== 0) {
+      while (!doesWinEventExists && counter < 100) {
+        counter++;
+        try {
+          const res = await (await fetch(CHESS_EVENT_URL))?.json();
+
+          doesWinEventExists = !!res?.data?.find(
+            (event: {
+              result: { draw?: string; gameId: string };
+              transaction_id: string;
+            }) =>
+              event.transaction_id === data.txId &&
+              String(event.result.gameId) === String(room.roomId) &&
+              event.result.draw === 'false',
+          );
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+
+    // Win event doesnt exist on chain so return without persisting current game
+    if (!doesWinEventExists) return null;
+
     const chessGame = await this.persistChessGame(room, data.userId);
 
     chessGame.txns.push({
@@ -433,6 +461,34 @@ export class ChessService {
     const isDraw = chess.isDraw();
 
     if (!isDraw) return null;
+
+    let counter = 0;
+
+    let doesDrawEventExists = false;
+
+    if (room.stake !== 0) {
+      while (!doesDrawEventExists && counter < 100) {
+        counter++;
+        try {
+          const res = await (await fetch(CHESS_EVENT_URL))?.json();
+
+          doesDrawEventExists = !!res?.data?.find(
+            (event: {
+              result: { draw?: string; gameId: string };
+              transaction_id: string;
+            }) =>
+              event.transaction_id === data.txId &&
+              String(event.result.gameId) === String(room.roomId) &&
+              event.result.draw === 'true',
+          );
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+
+    // Draw event doesnt exist on chain so return without persisting current game
+    if (!doesDrawEventExists) return null;
 
     const chessGame =
       (await this.chessGameRepository.findOneBy({ id: data.roomId })) ||
@@ -509,7 +565,8 @@ export class ChessService {
               transaction_id: string;
             }) =>
               event.transaction_id === data.txId &&
-              String(event.result.gameId) === String(room.roomId),
+              String(event.result.gameId) === String(room.roomId) &&
+              event.result.draw === 'true',
           );
         } catch (e) {
           console.error(e);
