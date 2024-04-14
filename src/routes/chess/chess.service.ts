@@ -47,7 +47,13 @@ export class ChessService {
       [];
 
     let counter = 0;
+    // this variable determines whether chess game shall be created or not
+    let shouldCreateChessGame = true;
+
     if (room.stake !== 0) {
+      // set it to false, so that we can only create the chess game if we find the index for this roomId
+      // i.e transaction has happened on chain
+      shouldCreateChessGame = false;
       while (!room?.index && counter < 5000) {
         counter++;
         try {
@@ -57,13 +63,19 @@ export class ChessService {
           // and save it
           room.index = res?.data?.find(
             (event: { result: { index?: string; _gameId: string } }) =>
-              Number(event?.result._gameId) === Number(data.roomId),
+              String(event?.result._gameId) === String(data.roomId),
           )?.result?.index;
+
+          if (room.index) {
+            shouldCreateChessGame = true;
+          }
         } catch (e) {
           console.error(e);
         }
       }
     }
+
+    if (!shouldCreateChessGame) return null;
 
     await Promise.all([
       this.cacheManager.set(`chess:rooms:${data.roomId}`, room, 0),
@@ -480,6 +492,33 @@ export class ChessService {
 
     // requesting userId isnt in the room
     if (data.userId !== room.player1.userId) return null;
+
+    let counter = 0;
+    // let shouldAvertChessGame = true;
+    let doesAvertEventExists = false;
+
+    if (room.stake !== 0) {
+      while (!doesAvertEventExists && counter < 100) {
+        counter++;
+        try {
+          const res = await (await fetch(CHESS_EVENT_URL))?.json();
+
+          doesAvertEventExists = !!res?.data?.find(
+            (event: {
+              result: { draw?: string; gameId: string };
+              transaction_id: string;
+            }) =>
+              event.transaction_id === data.txId &&
+              String(event.result.gameId) === String(room.roomId),
+          );
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+
+    // avert event doesnt exist on chain so return without persisting current game
+    if (!doesAvertEventExists) return null;
 
     const chessGame = await this.persistChessGame(room, null, false);
 
