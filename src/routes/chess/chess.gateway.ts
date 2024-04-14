@@ -134,11 +134,14 @@ export class ChessGateway {
   }
 
   @SubscribeMessage('chess:collect-win')
-  async handleCollectWin(data: {
-    userId: string;
-    txId: string;
-    roomId: string;
-  }) {
+  async handleCollectWin(
+    _,
+    data: {
+      userId: string;
+      txId: string;
+      roomId: string;
+    },
+  ) {
     const result = await this.chessService.collectWin(data);
 
     if (!result) return;
@@ -149,11 +152,14 @@ export class ChessGateway {
   }
 
   @SubscribeMessage('chess:collect-draw')
-  async handleCollectDraw(data: {
-    userId: string;
-    txId: string;
-    roomId: string;
-  }) {
+  async handleCollectDraw(
+    _,
+    data: {
+      userId: string;
+      txId: string;
+      roomId: string;
+    },
+  ) {
     const result = await this.chessService.collectDraw(data);
 
     if (!result) return;
@@ -164,10 +170,14 @@ export class ChessGateway {
   }
 
   @SubscribeMessage('chess:avert')
-  async handleAvert(data: { userId: string; txId: string; roomId: string }) {
+  async handleAvert(_, data: { userId: string; txId: string; roomId: string }) {
     const result = await this.chessService.avertGame(data);
 
+    console.log(result, 'result');
+
     if (!result) return;
+
+    // console.log(client.rooms, data, 'client');
 
     return this.server.in(data.roomId).emit('chess:averted', {
       message: `[Match Averted] You (${data.userId}) averted the game and has successfully collected your stake.`,

@@ -37,7 +37,7 @@ export class ChessGame extends BaseEntity {
   @Column({ type: 'varchar', nullable: true })
   index: string;
 
-  @Column({ type: 'jsonb' })
+  @Column({ type: 'jsonb', default: [] })
   txns: Array<{
     player: string;
     txnId: string;

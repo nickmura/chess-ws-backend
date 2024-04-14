@@ -57,7 +57,7 @@ export class ChessService {
           // and save it
           room.index = res?.data?.find(
             (event: { result: { index?: string; _gameId: string } }) =>
-              event?.result._gameId === data.roomId,
+              Number(event?.result._gameId) === Number(data.roomId),
           )?.result?.index;
         } catch (e) {
           console.error(e);
@@ -468,6 +468,8 @@ export class ChessService {
     const cacheKey = `chess:rooms:${data.roomId}`;
     const room = await this.cacheManager.get<IChessRoom>(cacheKey);
 
+    // console.log(cacheKey, room);
+
     if (!room) return null;
 
     // room already has another plyaer
@@ -479,7 +481,7 @@ export class ChessService {
     // requesting userId isnt in the room
     if (data.userId !== room.player1.userId) return null;
 
-    const chessGame = await this.persistChessGame(room, null);
+    const chessGame = await this.persistChessGame(room, null, false);
 
     chessGame.txns.push({
       action: 'avert-game',
@@ -487,16 +489,24 @@ export class ChessService {
       txnId: data.txId,
     });
 
+    // console.log(chessGame, 'chessGame');
+    await chessGame.save();
+
     await Promise.all([
-      await this.chessGameRepository.save(chessGame),
       this.cacheManager.del(cacheKey),
       this.cacheManager.del(`chat-room:${data.roomId}`),
     ]);
 
+    // console.log('after promise all');
+
     return true;
   }
 
-  async persistChessGame(room: IChessRoom, winner: string | null) {
+  async persistChessGame(
+    room: IChessRoom,
+    winner: string | null,
+    persist?: boolean,
+  ) {
     const chessGame = new ChessGame();
 
     chessGame.fen = room.fen;
@@ -512,6 +522,11 @@ export class ChessService {
     chessGame.wager = room.stake;
     chessGame.winner = winner;
     chessGame.index = room.index;
+    chessGame.txns = [];
+
+    if (!persist) {
+      return chessGame;
+    }
 
     return await this.chessGameRepository.save(chessGame);
   }
