@@ -49,7 +49,7 @@ export class ChessService {
     // this variable determines whether chess game shall be created or not
     let shouldCreateChessGame = true;
 
-    if (room.stake !== 0) {
+    if (Number(room.stake) !== 0) {
       // set it to false, so that we can only create the chess game if we find the index for this roomId
       // i.e transaction has happened on chain
       shouldCreateChessGame = false;
@@ -200,7 +200,7 @@ export class ChessService {
     // if the chess room has one person seat available
     // and current requesting user to connect isnt player 1
     if (room.player2.userId === null && room.player1.userId !== data.userId) {
-      if (room.stake > 0) {
+      if (Number(room.stake) > 0) {
         // if room has stake and no txId is supplied during join by ID
         if (!data.txId) return null;
 
@@ -414,6 +414,7 @@ export class ChessService {
     const cacheKey = `chess:rooms:${data.roomId}`;
     const room = await this.cacheManager.get<IChessRoom>(cacheKey);
 
+    // console.log(room, 'room');
     if (!room) return null;
 
     // requesting userId isnt in the room
@@ -426,7 +427,8 @@ export class ChessService {
     const chess = new Chess(room.fen);
     const turn = chess.turn();
 
-    const isGameOver = chess.isCheckmate() || chess.isStalemate();
+    const isGameOver =
+      (chess.isCheckmate() || chess.isStalemate()) && !chess.isDraw();
 
     if (!isGameOver) return null;
 
@@ -444,8 +446,8 @@ export class ChessService {
 
     let doesWinEventExists = false;
 
-    if (room.stake !== 0) {
-      while (!doesWinEventExists && counter < 100) {
+    if (Number(room.stake) !== 0) {
+      while (!doesWinEventExists && counter < 5000) {
         counter++;
         try {
           const res = await (await fetch(CHESS_EVENT_URL))?.json();
@@ -464,6 +466,8 @@ export class ChessService {
         }
       }
     }
+
+    // console.log(doesWinEventExists, 'doesWinEventExists');
 
     // Win event doesnt exist on chain so return without persisting current game
     if (!doesWinEventExists) return null;
@@ -489,6 +493,7 @@ export class ChessService {
     const cacheKey = `chess:rooms:${data.roomId}`;
     const room = await this.cacheManager.get<IChessRoom>(cacheKey);
 
+    // console.log(room, 'room');
     if (!room) return null;
 
     // requesting userId isnt in the room
@@ -508,11 +513,14 @@ export class ChessService {
 
     let doesDrawEventExists = false;
 
-    if (room.stake !== 0) {
-      while (!doesDrawEventExists && counter < 100) {
+    if (Number(room.stake) !== 0) {
+      while (!doesDrawEventExists && counter < 5000) {
+        // console.log(counter);
         counter++;
         try {
           const res = await (await fetch(CHESS_EVENT_URL))?.json();
+
+          // console.log(res, 'res');
 
           doesDrawEventExists = !!res?.data?.find(
             (event: {
@@ -523,52 +531,53 @@ export class ChessService {
               String(event.result.gameId) === String(room.roomId) &&
               event.result.draw === 'true',
           );
+
+          // console.log('ended now repeating the loop');
         } catch (e) {
           console.error(e);
         }
       }
     }
 
+    // console.log(doesDrawEventExists, 'doesDrawEventExists');
     // Draw event doesnt exist on chain so return without persisting current game
     if (!doesDrawEventExists) return null;
 
-    const chessGame =
-      (await this.chessGameRepository.findOneBy({ id: data.roomId })) ||
-      (await this.persistChessGame(room, null));
-
     // check if current requesting user has already collected draw
-    const alreadyCollectedDraw = chessGame.txns.find(
+    const alreadyCollectedDraw = room.txns.find(
       (txn) => txn.player === data.userId && txn.action === 'collect-draw',
     );
 
+    // console.log({ alreadyCollectedDraw });
+
     if (!alreadyCollectedDraw) {
-      chessGame.txns.push({
+      room.txns.push({
         action: 'collect-draw',
         player: data.userId,
         txnId: data.txId,
       });
 
-      await this.chessGameRepository.save(chessGame);
-
       const bothPlayersCollectedDraw =
-        chessGame.txns.find(
+        room.txns.find(
           (txn) =>
-            txn.player === chessGame.player1.id &&
-            txn.action === 'collect-draw',
+            txn.player === room.player1.userId && txn.action === 'collect-draw',
         ) &&
-        chessGame.txns.find(
+        room.txns.find(
           (txn) =>
-            txn.player === chessGame.player2.id &&
-            txn.action === 'collect-draw',
+            txn.player === room.player2.userId && txn.action === 'collect-draw',
         );
 
       if (bothPlayersCollectedDraw) {
         // delete cached data so the game is ended game and only accessible in db
         await Promise.all([
+          this.persistChessGame(room, null),
           this.cacheManager.del(cacheKey),
           this.cacheManager.del(`chat-room:${data.roomId}`),
         ]);
+      } else {
+        await this.cacheManager.set(cacheKey, room);
       }
+
       return true;
     }
     return null;
@@ -595,8 +604,8 @@ export class ChessService {
     // let shouldAvertChessGame = true;
     let doesAvertEventExists = false;
 
-    if (room.stake !== 0) {
-      while (!doesAvertEventExists && counter < 100) {
+    if (Number(room.stake) !== 0) {
+      while (!doesAvertEventExists && counter < 5000) {
         counter++;
         try {
           const res = await (await fetch(CHESS_EVENT_URL))?.json();
