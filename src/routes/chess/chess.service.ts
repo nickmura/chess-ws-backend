@@ -360,6 +360,11 @@ export class ChessService {
       }),
     );
 
+    await this.cacheManager.set(
+      'chess:unfilled-rooms',
+      lobbies.map((room) => room.roomId),
+    );
+
     // console.log(lobbies, 'lobbies');
 
     return lobbies;
@@ -370,6 +375,9 @@ export class ChessService {
     const cachedRoom = await this.cacheManager.get<IChessRoom>(cacheKey);
 
     if (!cachedRoom) return null;
+
+    // check if stake matches the wagerless criteria
+    if (Number(cachedRoom.stake) !== 0) return null;
 
     // requesting userId is the one who wants to leave the game so the other remaining player is the winner
     const winner =
