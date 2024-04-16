@@ -45,24 +45,24 @@ export class ChessGateway {
     });
   }
 
-  @SubscribeMessage('join:chess')
-  async handleJoinChess(client: Socket, data: { userId: string }) {
-    const result = await this.chessService.joinAnyRoom(data);
+  // @SubscribeMessage('join:chess')
+  // async handleJoinChess(client: Socket, data: { userId: string }) {
+  //   const result = await this.chessService.joinAnyRoom(data);
 
-    await client.join(result.roomId);
+  //   await client.join(result.roomId);
 
-    // console.log(result, 'result');
+  //   // console.log(result, 'result');
 
-    return client.emit('joined:chess', {
-      message: `You joined the chess room ${result.roomId}`,
-      data: result,
-    });
-  }
+  //   return client.emit('joined:chess', {
+  //     message: `You joined the chess room ${result.roomId}`,
+  //     data: result,
+  //   });
+  // }
 
   @SubscribeMessage('join:chess:room')
   async handleRoomIdJoin(
     client: Socket,
-    data: { roomId: string; userId: string },
+    data: { roomId: string; userId: string; txId?: string },
   ) {
     const result = await this.chessService.joinRoomById(data);
 

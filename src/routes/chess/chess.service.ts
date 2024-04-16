@@ -2,11 +2,10 @@ import { Cache } from '@nestjs/cache-manager';
 import { Injectable } from '@nestjs/common';
 import { Chess, DEFAULT_POSITION, Move } from 'chess.js';
 import { IChessRoom } from './chess.types';
-import { nanoid } from 'nanoid';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ChessGame } from 'src/entities/chessGame.entity';
 import { Repository } from 'typeorm';
-import { CHESS_EVENT_URL } from 'src/constants';
+import { CHESS_EVENT_URL, CHESS_TRANSACTION_BY_ID_URL } from 'src/constants';
 
 @Injectable()
 export class ChessService {
@@ -88,83 +87,83 @@ export class ChessService {
     return room;
   }
 
-  async joinAnyRoom(data: { userId: string }) {
-    const cachedUnfilledRooms = await this.cacheManager.get<Array<string>>(
-      'chess:unfilled-rooms',
-    );
+  // async joinAnyRoom(data: { userId: string }) {
+  //   const cachedUnfilledRooms = await this.cacheManager.get<Array<string>>(
+  //     'chess:unfilled-rooms',
+  //   );
 
-    // console.log('joinAnyRoom', { cachedUnfilledRooms });
-    const unfilledRooms = cachedUnfilledRooms || [];
-    // ? JSON.parse(String(cachedUnfilledRooms))
-    // : [];
+  //   // console.log('joinAnyRoom', { cachedUnfilledRooms });
+  //   const unfilledRooms = cachedUnfilledRooms || [];
+  //   // ? JSON.parse(String(cachedUnfilledRooms))
+  //   // : [];
 
-    const unfilledRoom = unfilledRooms.shift();
-    // console.log('joinAnyRoom', { unfilledRoom });
+  //   const unfilledRoom = unfilledRooms.shift();
+  //   // console.log('joinAnyRoom', { unfilledRoom });
 
-    const cachedRoom = await this.cacheManager.get<IChessRoom>(
-      `chess:rooms:${unfilledRoom}`,
-    );
+  //   const cachedRoom = await this.cacheManager.get<IChessRoom>(
+  //     `chess:rooms:${unfilledRoom}`,
+  //   );
 
-    // console.log('joinAnyRoom', { unfilledRoom });
-    const room: IChessRoom = cachedRoom || ({} as IChessRoom); // ? JSON.parse(String(cachedRoom)) : {};
+  //   // console.log('joinAnyRoom', { unfilledRoom });
+  //   const room: IChessRoom = cachedRoom || ({} as IChessRoom); // ? JSON.parse(String(cachedRoom)) : {};
 
-    if (unfilledRoom) {
-      room.player2 = {
-        userId: data.userId,
-        isConnected: true,
-        side: 'b',
-      };
+  //   if (unfilledRoom) {
+  //     room.player2 = {
+  //       userId: data.userId,
+  //       isConnected: true,
+  //       side: 'b',
+  //     };
 
-      await Promise.all([
-        this.cacheManager.set(
-          `chess:rooms:${unfilledRoom}`,
-          // JSON.stringify(room),
-          room,
-          0,
-        ),
-        this.cacheManager.set(
-          'chess:unfilled-rooms',
-          // JSON.stringify(unfilledRooms),
-          unfilledRooms,
-          0, // dont expire this cache
-        ),
-      ]);
+  //     await Promise.all([
+  //       this.cacheManager.set(
+  //         `chess:rooms:${unfilledRoom}`,
+  //         // JSON.stringify(room),
+  //         room,
+  //         0,
+  //       ),
+  //       this.cacheManager.set(
+  //         'chess:unfilled-rooms',
+  //         // JSON.stringify(unfilledRooms),
+  //         unfilledRooms,
+  //         0, // dont expire this cache
+  //       ),
+  //     ]);
 
-      return { roomId: unfilledRoom, ...room };
-    }
+  //     return { roomId: unfilledRoom, ...room };
+  //   }
 
-    const roomId = nanoid(8);
-    room.player1 = { userId: data.userId, side: 'w', isConnected: true };
-    room.player2 = { userId: null, side: 'b', isConnected: false };
-    room.fen = DEFAULT_POSITION;
-    room.turn = 'w';
+  //   const roomId = nanoid(8);
+  //   room.player1 = { userId: data.userId, side: 'w', isConnected: true };
+  //   room.player2 = { userId: null, side: 'b', isConnected: false };
+  //   room.fen = DEFAULT_POSITION;
+  //   room.turn = 'w';
 
-    await this.cacheManager.set(
-      `chess:rooms:${roomId}`,
-      // JSON.stringify(room),
-      room,
-      0,
-    );
+  //   await this.cacheManager.set(
+  //     `chess:rooms:${roomId}`,
+  //     // JSON.stringify(room),
+  //     room,
+  //     0,
+  //   );
 
-    unfilledRooms.push(roomId);
+  //   unfilledRooms.push(roomId);
 
-    await this.cacheManager.set(
-      'chess:unfilled-rooms',
-      // JSON.stringify(unfilledRooms),
-      unfilledRooms,
-      0, // dont expire this cache
-    );
+  //   await this.cacheManager.set(
+  //     'chess:unfilled-rooms',
+  //     // JSON.stringify(unfilledRooms),
+  //     unfilledRooms,
+  //     0, // dont expire this cache
+  //   );
 
-    return { roomId, ...room };
-  }
+  //   return { roomId, ...room };
+  // }
 
-  async joinRoomById(data: { roomId: string; userId: string }) {
-    const cachedRoom = await this.cacheManager.get<IChessRoom>(
+  async joinRoomById(data: { roomId: string; userId: string; txId?: string }) {
+    const room = await this.cacheManager.get<IChessRoom>(
       `chess:rooms:${data.roomId}`,
     );
 
     // if no room with given id exists
-    if (!cachedRoom) {
+    if (!room) {
       const endedGame = await this.chessGameRepository.findOneBy({
         id: data.roomId,
       });
@@ -198,11 +197,54 @@ export class ChessService {
       }
     }
 
-    const room: IChessRoom = cachedRoom;
-
     // if the chess room has one person seat available
     // and current requesting user to connect isnt player 1
     if (room.player2.userId === null && room.player1.userId !== data.userId) {
+      if (room.stake > 0) {
+        // if room has stake and no txId is supplied during join by ID
+        if (!data.txId) return null;
+
+        const res = await fetch(CHESS_TRANSACTION_BY_ID_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            value: data.txId,
+          }),
+        });
+
+        const json = await res.json();
+
+        // console.log(room, 'room');
+
+        // console.log(json, 'json');
+
+        const stakeTrx =
+          Number(json?.raw_data?.contract?.[0]?.parameter?.value?.call_value) /
+          1_000_000;
+
+        // console.log(
+        //   'call_Value',
+        //   json?.raw_data?.contract?.[0]?.parameter?.value?.call_value,
+        //   'stakeTrx',
+        //   stakeTrx,
+        // );
+
+        // we have the stakedTrx amount for the provided tx id on chain and the stake value matches
+        if (stakeTrx && stakeTrx === Number(room.stake)) {
+          // console.log('valid');
+          room.txns.push({
+            player: data.userId,
+            action: 'join-game',
+            txnId: data.txId,
+          });
+        } else {
+          // console.log('invalid returning');
+          return null;
+        }
+      }
+
       room.player2 = {
         userId: data.userId,
         isConnected: true,

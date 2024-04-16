@@ -10,6 +10,11 @@ export type IChessRoom = {
   txns: Array<{
     player: string;
     txnId: string;
-    action: 'collect-win' | 'collect-draw' | 'avert-game' | 'end-game';
+    action:
+      | 'collect-win'
+      | 'collect-draw'
+      | 'avert-game'
+      | 'end-game'
+      | 'join-game';
   }>;
 };
