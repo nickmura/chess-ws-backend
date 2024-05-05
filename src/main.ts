@@ -13,7 +13,7 @@ async function bootstrap() {
   // const sessionRepository = dataSource.getRepository(Session);
 
   app.enableCors({
-    origin: 'http://localhost:3000',
+    origin: '*',
     credentials: true,
   });
 
