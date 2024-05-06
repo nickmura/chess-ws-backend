@@ -13,8 +13,8 @@ async function bootstrap() {
   // const sessionRepository = dataSource.getRepository(Session);
 
   app.enableCors({
-    origin: '*',
-    credentials: false,
+    origin: 'https://trxmini-games-v2.vercel.app/',
+    credentials: true,
   });
 
   // console.log(process.env.SESSION_SECRET, 'process.env.SESSION_SECRET');
