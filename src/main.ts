@@ -13,7 +13,7 @@ async function bootstrap() {
   // const sessionRepository = dataSource.getRepository(Session);
 
   app.enableCors({
-    origin: 'https://trxmini-games-v2.vercel.app/',
+    origin: 'https://beta.trxmini.games',
     credentials: true,
   });
 
