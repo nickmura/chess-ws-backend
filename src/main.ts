@@ -14,7 +14,7 @@ async function bootstrap() {
 
   app.enableCors({
     origin: '*',
-    credentials: true,
+    credentials: false,
   });
 
   // console.log(process.env.SESSION_SECRET, 'process.env.SESSION_SECRET');
